@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<head>
+	<script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+	<script src="https://d3js.org/d3.v4.js"></script>
+</head>
+<body>
+<title>Efficient Quicksort</title>
+<h1>Efficient Quicksort, Selection</h1>
+<input id="csv" type="file">
+<div id="plot1"></div>
+<script>
+	var fileInput = document.getElementById("csv"),
+
+	readFile = function () {
+	    var reader = new FileReader();
+	    reader.onload = function () {
+        	var data = d3.csvParse(reader.result, function(d) {
+        		return {
+					id : +d.id,
+					name : d.name,
+					type : d.instance_type.replace(/_/g, " "),
+					time : +d.ns,
+					elements : +d.elements
+				};
+        	});
+			console.log(data);
+
+			var aggregated = d3.nest()
+			.key(function(d) {return d.name;})
+			.key(function(d) {return d.elements;})
+			.rollup(function(leaves) {
+				 return d3.mean(leaves, function(d) {
+				 	return d.time;
+				 })
+			}).entries(data);
+
+			function to_trace(d) {
+				sorted = d.values.sort(function(a,b) {
+					return a.key < b.key
+				});
+				xs = sorted.map(kv => kv.key)
+				ys = sorted.map(kv => kv.value/1000000)
+				return{
+					x : xs,
+					y : ys,
+					mode : 'markers',
+					type : 'scatter',
+					name : d.key
+				}
+			};
+			
+			console.log(aggregated);
+
+			var data = aggregated.map(to_trace);
+			var layout = {
+				title : 'Instance Size vs Time',
+				xaxis : {
+					title : 'Instance Size'
+				},
+				yaxis : {
+					title : 'Time in ms'
+				},
+				showlegend : true
+			};
+			
+			Plotly.newPlot('plot1', data, layout, {modeBarButtonsToRemove: ['sendDataToCloud']});
+		};
+		
+		reader.readAsBinaryString(fileInput.files[0]);
+	};
+	fileInput.addEventListener('change', readFile);
+</script>
+</body>
